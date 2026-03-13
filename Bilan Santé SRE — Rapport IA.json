@@ -1,0 +1,547 @@
+{
+  "name": "Bilan Santé SRE — Rapport IA",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "On clicking 'execute'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -912,
+        320
+      ],
+      "typeVersion": 1,
+      "id": "ed634f77-04ff-4730-b412-f6accae722d3"
+    },
+    {
+      "parameters": {
+        "content": "## Déclenchement\nManuel ou planifié (CRON)\nLance le bilan complet de l'infra",
+        "height": 356,
+        "width": 216,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -976,
+        144
+      ],
+      "typeVersion": 1,
+      "id": "daea3be2-fdcd-4f29-87dd-0ac42e0fe147",
+      "name": "Sticky Note Trigger"
+    },
+    {
+      "parameters": {
+        "content": "## Zabbix\nRécupération de tous les hôtes actifs",
+        "height": 356,
+        "width": 200,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -736,
+        144
+      ],
+      "typeVersion": 1,
+      "id": "d534e71a-eaf8-444f-b89e-8a421511e2d7",
+      "name": "Sticky Note Hosts"
+    },
+    {
+      "parameters": {
+        "content": "## Split & Collecte parallèle\nPour chaque hôte :\n- CPU (Zabbix)\n- RAM (Zabbix)\n- Disque (Zabbix)\n- Alertes actives (Zabbix)\n- Logs erreurs 24h (Loki)",
+        "height": 1104,
+        "width": 664,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -512,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "896d3166-f073-4994-b8f7-6f6b56ff9dc9",
+      "name": "Sticky Note Collect"
+    },
+    {
+      "parameters": {
+        "content": "## Agrégation & Traitement\nMerge de toutes les sources\nTransformation en structure unifiée par hôte",
+        "height": 468,
+        "width": 420,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        176,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "766314b7-f0d5-4af0-8870-7b564edc8b6a",
+      "name": "Sticky Note Merge"
+    },
+    {
+      "parameters": {
+        "content": "## Analyse IA (Gemini)\nDiagnostic structuré :\n🔴 Alertes prioritaires\n🟡 Analyse des services\n📊 Performance\n🛠 Plan d'action 24h",
+        "height": 672,
+        "width": 312,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        624,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "52d5d414-66ad-44db-bceb-cfc9c6ba00b9",
+      "name": "Sticky Note IA"
+    },
+    {
+      "parameters": {
+        "content": "## Rapport HTML\nGénération d'un rapport visuel\nprofessionnel prêt à partager",
+        "height": 452,
+        "width": 464,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        976,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "22fdef45-f1de-40e8-b7fd-962fa2f747fb",
+      "name": "Sticky Note Report"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://YOUR_ZABBIX_HOST/api_jsonrpc.php",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zabbixApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"host.get\",\n  \"params\": {\n    \"output\": [\"hostid\", \"host\", \"name\", \"status\"],\n    \"selectTags\": \"extend\",\n    \"selectInterfaces\": [\"ip\"],\n    \"filter\": { \"status\": 0 }\n  },\n  \"id\": 1\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -688,
+        320
+      ],
+      "id": "b89aa879-c2f1-40e7-b502-6dfa1eb425d4",
+      "name": "Zabbix Get Hosts"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "result",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        320
+      ],
+      "id": "3f346acb-2d64-49f8-ab73-3093facb3735",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://YOUR_ZABBIX_HOST/api_jsonrpc.php",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zabbixApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"item.get\",\n  \"params\": {\n    \"output\": [\"itemid\", \"name\", \"lastvalue\", \"units\", \"key_\"],\n    \"hostids\": \"{{ $json.hostid }}\",\n    \"selectHosts\": [\"hostid\", \"host\", \"name\"],\n    \"filter\": {\n      \"key_\": [\"vm.memory.utilization\", \"proxmox.node.mempourcent[proxmox]\"]\n    }\n  },\n  \"id\": 3\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -240,
+        -64
+      ],
+      "id": "e4c9b00d-4208-49cd-b922-9c8afa27c1bf",
+      "name": "Zabbix Get Hosts RAM"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://YOUR_ZABBIX_HOST/api_jsonrpc.php",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zabbixApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"item.get\",\n  \"params\": {\n    \"output\": [\"itemid\", \"name\", \"lastvalue\", \"units\", \"key_\"],\n    \"hostids\": \"{{ $json.hostid }}\",\n    \"selectHosts\": [\"hostid\", \"host\", \"name\"],\n    \"filter\": {\n      \"key_\": [\"system.cpu.util\", \"proxmox.node.cpu[proxmox]\"]\n    }\n  },\n  \"id\": 3\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -240,
+        128
+      ],
+      "id": "586820df-0ee5-4b4a-8cf4-b4dbce36a8d9",
+      "name": "Zabbix Get Hosts CPU"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://YOUR_ZABBIX_HOST/api_jsonrpc.php",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zabbixApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"item.get\",\n  \"params\": {\n    \"output\": [\"itemid\", \"name\", \"lastvalue\", \"units\", \"key_\"],\n    \"hostids\": \"{{ $json.hostid }}\",\n    \"selectHosts\": [\"hostid\", \"host\", \"name\"],\n    \"filter\": {\n      \"key_\": [\"vfs.fs.dependent.size[/,pused]\", \"proxmox.node.percent[proxmox,local-lvm]\"]\n    }\n  },\n  \"id\": 4\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -240,
+        320
+      ],
+      "id": "52de0e2a-5de4-4615-95a1-6a7d8a47cbc7",
+      "name": "Zabbix Get Hosts DISK"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://YOUR_ZABBIX_HOST/api_jsonrpc.php",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zabbixApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"trigger.get\",\n  \"params\": {\n    \"output\": [\"triggerid\", \"description\", \"priority\", \"value\", \"lastchange\"],\n    \"hostids\": [{{ $json.hostid }}],\n    \"selectHosts\": [\"hostid\", \"host\", \"name\"],\n    \"filter\": { \"value\": 1 },\n    \"sortfield\": \"priority\",\n    \"sortorder\": \"DESC\",\n    \"min_severity\": 0\n  },\n  \"id\": 5\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -240,
+        512
+      ],
+      "id": "566b8ec0-a129-41df-930b-2d5bc909605c",
+      "name": "Zabbix Get Hosts EVENT"
+    },
+    {
+      "parameters": {
+        "url": "http://YOUR_LOKI_HOST:3100/loki/api/v1/query_range",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={host=\"{{ $json.host }}\", container!~\"loki|promtail\"} |~ \"(?i)error|warn|crit|panic|fatal|failed\""
+            },
+            {
+              "name": "limit",
+              "value": "20"
+            },
+            {
+              "name": "start",
+              "value": "={{ Math.floor(Date.now() / 1000) - 86400 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -240,
+        704
+      ],
+      "id": "d32bc375-d51b-4728-8e96-60f2ad993147",
+      "name": "Loki Get Log"
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -16,
+        272
+      ],
+      "id": "aad9277d-5b0b-4977-9d8f-3dea71b8becd",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const hostData = {};\n\nfor (const item of $input.all()) {\n  const data = item.json;\n\n  if (data.result && Array.isArray(data.result) && data.result.length > 0 && data.result[0].hosts) {\n    for (const res of data.result) {\n      const hostInfo = res.hosts[0];\n      const hostname = hostInfo.name;\n      \n      if (!hostData[hostname]) {\n        hostData[hostname] = {\n          hostname: hostname,\n          hostid: hostInfo.hostid,\n          cpu: \"-\",\n          ram: \"-\",\n          disk: \"-\",\n          problems: [],\n          logs: [\"Aucune erreur détectée dans les logs.\"]\n        };\n      }\n\n      const val = res.lastvalue;\n      const key = res.key_;\n\n      if (key === 'system.cpu.util' || key === 'proxmox.node.cpu[proxmox]') {\n        hostData[hostname].cpu = parseFloat(val).toFixed(2) + ' %';\n      } else if (key === 'vm.memory.utilization' || key === 'proxmox.node.mempourcent[proxmox]') {\n        hostData[hostname].ram = parseFloat(val).toFixed(2) + ' %';\n      } else if (key === 'vfs.fs.dependent.size[/,pused]' || key === 'proxmox.node.percent[proxmox,local-lvm]') {\n        hostData[hostname].disk = parseFloat(val).toFixed(2) + ' %';\n      }\n\n      if (res.triggerid && res.value === \"1\") {\n        const severityMap = { 0: 'NC', 1: 'Info', 2: 'Avert.', 3: 'Moyen', 4: 'Haut', 5: 'Critique' };\n        hostData[hostname].problems.push({\n          description: res.description,\n          priorite: severityMap[res.priority] || res.priority\n        });\n      }\n    }\n  }\n\n  if (data.status === \"success\" && data.data && data.data.result) {\n    const logsFound = data.data.result;\n    if (logsFound.length > 0) {\n      logsFound.forEach(streamObj => {\n        const hostname = streamObj.stream.host || \"Unknown\";\n        if (hostData[hostname]) {\n          const messages = streamObj.values.map(v => v[1].trim());\n          if (hostData[hostname].logs[0] === \"Aucune erreur détectée dans les logs.\") {\n            hostData[hostname].logs = [];\n          }\n          hostData[hostname].logs = [...hostData[hostname].logs, ...messages].slice(-10);\n        }\n      });\n    }\n  }\n}\n\nreturn Object.values(hostData).map(h => ({ json: h }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        320
+      ],
+      "id": "bf10bf9f-df67-49fe-a7cf-afbc95413111",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        432,
+        320
+      ],
+      "id": "02af062b-bfc5-4946-be53-ed083a3b17d1",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Voici le rapport JSON agrégé de mon infrastructure pour les dernières 24h :\n\n{{ JSON.stringify($json.data) }}\n\nProduis un diagnostic structuré comme suit :\n- 🔴 ALERTES PRIORITAIRES : (Action immédiate requise)\n- 🟡 ANALYSE DES SERVICES : (État de Docker et des VMs Proxmox)\n- 📊 PERFORMANCE : (Bilan CPU/RAM/Disque)\n- 🛠 PLAN D'ACTION : (3 recommandations concrètes pour les prochaines 24h)",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Tu es un ingénieur SRE expert en infrastructure hybride (Proxmox, Docker, Zabbix). Analyse le bilan de santé JSON fourni.\n\nInstructions :\n1. Analyse CPU/RAM/Disk. Sois attentif à la RAM Proxmox vs état des VMs.\n2. Examine les logs Loki 24h. Fais le lien avec les alertes Zabbix.\n3. Priorise les problèmes réels (VMs éteintes) vs alertes informatives.\n4. Utilise l'historique des logs pour détecter une instabilité récente.\n\nTon : technique, précis, sans fioritures. Réponds en français."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        656,
+        320
+      ],
+      "id": "56b25c5e-7345-4cbd-8fda-330343fbb8d6",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        736,
+        544
+      ],
+      "id": "4e01b17d-1a98-4012-85c2-3aa4dd6c9411",
+      "name": "Google Gemini Chat Model1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const llmResponse = $input.first().json;\nlet reportText = llmResponse.output || llmResponse.text || llmResponse.response || (typeof llmResponse === 'string' ? llmResponse : '');\n\nfunction getSection(text, startTitle, endTitle) {\n    const start = text.indexOf(startTitle);\n    const end = endTitle ? text.indexOf(endTitle) : text.length;\n    if (start === -1) return '';\n    return text.substring(start + startTitle.length, end).trim();\n}\n\nconst alertes = getSection(reportText, \"### 🔴 ALERTES PRIORITAIRES :\", \"### 🟡 ANALYSE DES SERVICES :\");\nconst services = getSection(reportText, \"### 🟡 ANALYSE DES SERVICES :\", \"### 📊 PERFORMANCE :\");\nconst perf = getSection(reportText, \"### 📊 PERFORMANCE :\", \"### 🛠 PLAN D'ACTION :\");\nconst actions = getSection(reportText, \"### 🛠 PLAN D'ACTION :\", null);\n\nconst clean = (txt) => txt.replace(/\\*\\*/g, '').replace(/^\\d+\\.\\s/gm, '');\n\nconst actionLines = clean(actions).split('\\n').map(l => l.trim()).filter(l => l.length > 5);\nlet actionListHtml = '';\nlet currentActionIndex = 0;\n\nactionLines.forEach((line) => {\n    if (line.includes(\"(3 recommandations\")) return;\n    const isNewBlock = (!line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*')) || line.includes(' :');\n    if (isNewBlock && currentActionIndex < 3) {\n        currentActionIndex++;\n        if (currentActionIndex > 1) actionListHtml += '</div></div>';\n        actionListHtml += `<div class=\"action-item\"><div class=\"action-num\">${currentActionIndex}</div><div class=\"action-text\"><strong style=\"color:#fff; display:block; margin-bottom:10px; font-size:16px; letter-spacing:0.5px;\">${line.replace(':', '')}</strong>`;\n    } else {\n        const cleanDetail = line.replace(/^[•\\-*]\\s?/, '');\n        actionListHtml += `<div style=\"margin-top:10px; font-size:14px; opacity:0.8; padding-left:15px; border-left:1px solid #334155; line-height:1.6;\">${cleanDetail}</div>`;\n    }\n});\nactionListHtml += '</div></div>';\n\nconst htmlContent = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n<meta charset=\"UTF-8\">\n<link href=\"https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono&display=swap\" rel=\"stylesheet\">\n<style>\n:root { --bg:#080a0f; --card:#11151c; --border:#1e2530; --red:#ff5f57; --orange:#ffbd2e; --blue:#2bc1ff; --green:#28c840; --text:#c9d1d9; --text-dim:#8b949e; }\nbody { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--text); padding:50px 20px; margin:0; line-height:1.8; }\n.wrapper { max-width:950px; margin:auto; }\n.header { border-left:4px solid var(--blue); padding-left:20px; margin-bottom:60px; }\n.header h1 { margin:0; font-weight:800; font-size:28px; letter-spacing:-1px; color:#fff; text-transform:uppercase; }\n.header span { font-family:'JetBrains Mono'; font-size:11px; color:var(--blue); opacity:0.8; letter-spacing:1px; }\n.section-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:2px; margin:60px 0 25px; display:flex; align-items:center; }\n.section-label::after { content:''; flex:1; height:1px; background:var(--border); margin-left:15px; }\n.card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:35px; margin-bottom:40px; box-shadow:0 12px 40px rgba(0,0,0,0.4); }\n.alert-box { border-left:4px solid var(--red); background:rgba(255,95,87,0.08); padding:25px; border-radius:0 10px 10px 0; color:var(--text); font-size:15px; }\n.perf-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:30px; margin-bottom:50px; }\n.perf-item { background:var(--card); border:1px solid var(--border); padding:30px; border-radius:16px; }\n.perf-item h4 { margin:0 0 25px 0; color:var(--blue); font-size:13px; letter-spacing:1.5px; text-transform:uppercase; padding-bottom:12px; border-bottom:1px solid var(--border); }\n.metric-row { display:flex; justify-content:space-between; font-size:14px; margin-bottom:15px; align-items:center; }\n.metric-val { color:#fff; font-weight:600; font-family:'JetBrains Mono'; background:rgba(43,193,255,0.1); border:1px solid rgba(43,193,255,0.2); padding:3px 10px; border-radius:6px; font-size:13px; }\n.action-item { display:flex; gap:25px; margin-bottom:35px; align-items:flex-start; padding:30px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:14px; }\n.action-num { background:var(--green); color:#000; min-width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }\n.action-text { flex:1; }\n.service-text { color:var(--text-dim); font-size:15px; white-space:pre-wrap; line-height:1.9; }\n</style>\n</head>\n<body>\n<div class=\"wrapper\">\n<div class=\"header\"><h1>Intelligence Système</h1><span>// LAB_MONITORING // RAPPORT_24H_ANALYSIS</span></div>\n<div class=\"section-label\" style=\"color:var(--red)\">Alertes Critiques</div>\n<div class=\"card\"><div class=\"alert-box\">${clean(alertes).split('\\n').filter(l=>l.trim().length>0).join('<br><br>')}</div></div>\n<div class=\"section-label\" style=\"color:var(--orange)\">Analyse des Services</div>\n<div class=\"card\"><div class=\"service-text\">${clean(services).split('\\n').filter(l=>l.trim().length>0).join('<br><br>')}</div></div>\n<div class=\"section-label\" style=\"color:var(--blue)\">Métriques de Performance</div>\n<div class=\"perf-grid\" id=\"perf-dynamic\"></div>\n<div class=\"section-label\" style=\"color:var(--green)\">Plan d'Action Tactique</div>\n<div>${actionListHtml}</div>\n<div style=\"text-align:center; font-size:10px; color:#484f58; margin-top:100px; font-family:'JetBrains Mono'; letter-spacing:2px; opacity:0.6;\">SRE_AUTOMATION_NODE_V3 // TERMINAL_ID: ${Math.random().toString(36).substr(2,8).toUpperCase()}</div>\n</div>\n</body>\n</html>`;\n\nreturn [{ json: { report_html: htmlContent } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        320
+      ],
+      "id": "2a3296c6-d75e-4f82-b47d-e00bb8da1462",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "html": "{{ $json.report_html }}"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1232,
+        320
+      ],
+      "id": "a2a9f7fe-04af-418c-ac29-4808ba9f860f",
+      "name": "HTML"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On clicking 'execute'": {
+      "main": [
+        [
+          {
+            "node": "Zabbix Get Hosts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zabbix Get Hosts": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Zabbix Get Hosts RAM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Zabbix Get Hosts CPU",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Zabbix Get Hosts DISK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Zabbix Get Hosts EVENT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loki Get Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zabbix Get Hosts RAM": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zabbix Get Hosts CPU": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Zabbix Get Hosts DISK": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Zabbix Get Hosts EVENT": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Loki Get Log": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "fff16627-fd22-4bc9-9329-b53f6fad0faa",
+  "meta": {
+    "instanceId": "b856db3867e53986e1e3dd72d6c7a081776c008cdf7fd33e2a3528af2bb9b4ed"
+  },
+  "id": "Mt8sakaQrvw3NDy8PfrZA",
+  "tags": []
+}
